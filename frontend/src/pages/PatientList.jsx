@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAllPatients } from "../../redux/slices/patientSlice";
+import { fetchAllPatients } from "../redux/slices/patientSlice";
 import { Link } from "react-router-dom";
-import styles from "../../styles/styles";
+import styles from "../styles/styles";
 
 const PatientList = () => {
   const dispatch = useDispatch();

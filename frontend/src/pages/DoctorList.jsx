@@ -1,6 +1,6 @@
 import React from "react";
 import { useDispatch } from "react-redux";
-import { updateDoctorStatus } from "../../redux/slices/doctorSlice";
+import { updateDoctorStatus } from "../redux/slices/doctorSlice";
 
 const DoctorsList = ({ doctors }) => {
   const dispatch = useDispatch();

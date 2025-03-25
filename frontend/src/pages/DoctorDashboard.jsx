@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllDoctors } from "../redux/slices/doctorSlice";
-import DoctorsList from "../components/Doctors/DoctorsList";
+import DoctorsList from "../components/Doctor/DoctorList";
 
 const DoctorsDashboard = () => {
   const dispatch = useDispatch();
