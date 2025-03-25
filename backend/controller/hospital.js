@@ -1,14 +1,20 @@
+const express = require('express');
 const Hospital = require('../models/Hospital');
+const ErrorHandler = require('../utils/ErrorHandler');
+const catchAsyncErrors = require('../middleware/catchAsyncErrors');
+
+const router = express.Router();
 
 // 📌 Create a new hospital
-exports.createHospital = async (req, res) => {
-  try {
+router.post(
+  '/create-hospital',
+  catchAsyncErrors(async (req, res, next) => {
     const { name, location, contact, departments, status } = req.body;
 
     // Check if hospital already exists
     const existingHospital = await Hospital.findOne({ name, location });
     if (existingHospital) {
-      return res.status(400).json({ error: 'Hospital already exists' });
+      return next(new ErrorHandler('Hospital already exists', 400));
     }
 
     // Create a new hospital
@@ -21,41 +27,38 @@ exports.createHospital = async (req, res) => {
     });
 
     await hospital.save();
-    res.status(201).json({ message: 'Hospital created successfully', hospital });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(201).json({ success: true, message: 'Hospital created successfully', hospital });
+  })
+);
 
 // 📌 Get all hospitals
-exports.getAllHospitals = async (req, res) => {
-  try {
+router.get(
+  '/get-all-hospitals',
+  catchAsyncErrors(async (req, res, next) => {
     const hospitals = await Hospital.find();
-    res.status(200).json(hospitals);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, hospitals });
+  })
+);
 
 // 📌 Get a single hospital by ID
-exports.getHospitalById = async (req, res) => {
-  try {
+router.get(
+  '/:hospitalId',
+  catchAsyncErrors(async (req, res, next) => {
     const { hospitalId } = req.params;
     const hospital = await Hospital.findById(hospitalId);
 
     if (!hospital) {
-      return res.status(404).json({ error: 'Hospital not found' });
+      return next(new ErrorHandler('Hospital not found', 404));
     }
 
-    res.status(200).json(hospital);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, hospital });
+  })
+);
 
 // 📌 Update hospital details
-exports.updateHospital = async (req, res) => {
-  try {
+router.put(
+  '/update/:hospitalId',
+  catchAsyncErrors(async (req, res, next) => {
     const { hospitalId } = req.params;
     const { name, location, contact, departments, status } = req.body;
 
@@ -66,27 +69,26 @@ exports.updateHospital = async (req, res) => {
     );
 
     if (!updatedHospital) {
-      return res.status(404).json({ error: 'Hospital not found' });
+      return next(new ErrorHandler('Hospital not found', 404));
     }
 
-    res.status(200).json({ message: 'Hospital updated successfully', updatedHospital });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Hospital updated successfully', updatedHospital });
+  })
+);
 
 // 📌 Delete a hospital
-exports.deleteHospital = async (req, res) => {
-  try {
+router.delete(
+  '/delete/:hospitalId',
+  catchAsyncErrors(async (req, res, next) => {
     const { hospitalId } = req.params;
 
     const deletedHospital = await Hospital.findByIdAndDelete(hospitalId);
     if (!deletedHospital) {
-      return res.status(404).json({ error: 'Hospital not found' });
+      return next(new ErrorHandler('Hospital not found', 404));
     }
 
-    res.status(200).json({ message: 'Hospital deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Hospital deleted successfully' });
+  })
+);
+
+module.exports = router;

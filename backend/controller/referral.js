@@ -1,31 +1,36 @@
+const express = require('express');
 const Referral = require('../models/Referral');
 const Patient = require('../models/Patient');
 const Doctor = require('../models/Doctor');
 const Hospital = require('../models/Hospital');
-const Appointment = require('../models/Appointment');
+const ErrorHandler = require('../utils/ErrorHandler');
+const catchAsyncErrors = require('../middleware/catchAsyncErrors');
+
+const router = express.Router();
 
 // 📌 Create a new referral
-exports.createReferral = async (req, res) => {
-  try {
+router.post(
+  '/create-referral',
+  catchAsyncErrors(async (req, res, next) => {
     const { patient, referringDoctor, specialist, referringHospital, destinationHospital, reason, notes } = req.body;
 
     // Check if patient exists
     const patientExists = await Patient.findById(patient);
     if (!patientExists) {
-      return res.status(404).json({ error: 'Patient not found' });
+      return next(new ErrorHandler('Patient not found', 404));
     }
 
     // Check if referring doctor exists
     const referringDoctorExists = await Doctor.findById(referringDoctor);
     if (!referringDoctorExists) {
-      return res.status(404).json({ error: 'Referring doctor not found' });
+      return next(new ErrorHandler('Referring doctor not found', 404));
     }
 
     // Check if specialist exists (if provided)
     if (specialist) {
       const specialistExists = await Doctor.findById(specialist);
       if (!specialistExists) {
-        return res.status(404).json({ error: 'Specialist not found' });
+        return next(new ErrorHandler('Specialist not found', 404));
       }
     }
 
@@ -33,12 +38,12 @@ exports.createReferral = async (req, res) => {
     const referringHospitalExists = await Hospital.findById(referringHospital);
     const destinationHospitalExists = await Hospital.findById(destinationHospital);
     if (!referringHospitalExists || !destinationHospitalExists) {
-      return res.status(404).json({ error: 'One or both hospitals not found' });
+      return next(new ErrorHandler('One or both hospitals not found', 404));
     }
 
     // Prevent self-referrals to the same hospital
     if (referringHospital === destinationHospital) {
-      return res.status(400).json({ error: 'Cannot refer a patient to the same hospital' });
+      return next(new ErrorHandler('Cannot refer a patient to the same hospital', 400));
     }
 
     // Create referral
@@ -54,15 +59,14 @@ exports.createReferral = async (req, res) => {
     });
 
     await referral.save();
-    res.status(201).json({ message: 'Referral created successfully', referral });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(201).json({ success: true, message: 'Referral created successfully', referral });
+  })
+);
 
 // 📌 Get all referrals
-exports.getAllReferrals = async (req, res) => {
-  try {
+router.get(
+  '/get-all-referrals',
+  catchAsyncErrors(async (req, res, next) => {
     const referrals = await Referral.find()
       .populate('patient', 'user')
       .populate('referringDoctor', 'user specialization')
@@ -70,102 +74,96 @@ exports.getAllReferrals = async (req, res) => {
       .populate('referringHospital', 'name location')
       .populate('destinationHospital', 'name location');
 
-    res.status(200).json(referrals);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, referrals });
+  })
+);
 
 // 📌 Get referrals for a specific patient
-exports.getReferralsByPatient = async (req, res) => {
-  try {
+router.get(
+  '/patient/:patientId',
+  catchAsyncErrors(async (req, res, next) => {
     const { patientId } = req.params;
     const referrals = await Referral.find({ patient: patientId })
       .populate('referringDoctor', 'user specialization')
-      .populate('destinationHospital', 'name location')
-      .populate('status');
+      .populate('destinationHospital', 'name location');
 
     if (!referrals.length) {
-      return res.status(404).json({ error: 'No referrals found for this patient' });
+      return next(new ErrorHandler('No referrals found for this patient', 404));
     }
 
-    res.status(200).json(referrals);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, referrals });
+  })
+);
 
 // 📌 Get referrals sent to a specific hospital
-exports.getReferralsByHospital = async (req, res) => {
-  try {
+router.get(
+  '/hospital/:hospitalId',
+  catchAsyncErrors(async (req, res, next) => {
     const { hospitalId } = req.params;
     const referrals = await Referral.find({ destinationHospital: hospitalId })
       .populate('patient', 'user')
       .populate('referringDoctor', 'user specialization');
 
     if (!referrals.length) {
-      return res.status(404).json({ error: 'No referrals found for this hospital' });
+      return next(new ErrorHandler('No referrals found for this hospital', 404));
     }
 
-    res.status(200).json(referrals);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, referrals });
+  })
+);
 
 // 📌 Approve a referral
-exports.approveReferral = async (req, res) => {
-  try {
+router.patch(
+  '/approve/:referralId',
+  catchAsyncErrors(async (req, res, next) => {
     const { referralId } = req.params;
 
     const referral = await Referral.findById(referralId);
     if (!referral) {
-      return res.status(404).json({ error: 'Referral not found' });
+      return next(new ErrorHandler('Referral not found', 404));
     }
 
     referral.status = 'approved';
     await referral.save();
 
-    res.status(200).json({ message: 'Referral approved successfully', referral });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Referral approved successfully', referral });
+  })
+);
 
 // 📌 Reject a referral
-exports.rejectReferral = async (req, res) => {
-  try {
+router.patch(
+  '/reject/:referralId',
+  catchAsyncErrors(async (req, res, next) => {
     const { referralId } = req.params;
 
     const referral = await Referral.findById(referralId);
     if (!referral) {
-      return res.status(404).json({ error: 'Referral not found' });
+      return next(new ErrorHandler('Referral not found', 404));
     }
 
     referral.status = 'rejected';
     await referral.save();
 
-    res.status(200).json({ message: 'Referral rejected', referral });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Referral rejected', referral });
+  })
+);
 
 // 📌 Complete a referral
-exports.completeReferral = async (req, res) => {
-  try {
+router.patch(
+  '/complete/:referralId',
+  catchAsyncErrors(async (req, res, next) => {
     const { referralId } = req.params;
 
     const referral = await Referral.findById(referralId);
     if (!referral) {
-      return res.status(404).json({ error: 'Referral not found' });
+      return next(new ErrorHandler('Referral not found', 404));
     }
 
     referral.status = 'completed';
     await referral.save();
 
-    res.status(200).json({ message: 'Referral completed successfully', referral });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Referral completed successfully', referral });
+  })
+);
+
+module.exports = router;

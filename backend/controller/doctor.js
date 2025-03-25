@@ -1,28 +1,34 @@
+const express = require('express');
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
+const ErrorHandler = require('../utils/ErrorHandler');
+const catchAsyncErrors = require('../middleware/catchAsyncErrors');
+
+const router = express.Router();
 
 // 📌 Register a new doctor
-exports.registerDoctor = async (req, res) => {
-  try {
+router.post(
+  '/register',
+  catchAsyncErrors(async (req, res, next) => {
     const { userId, specialization, experience, hospital, availability, phone } = req.body;
 
     // Check if the user exists
     const userExists = await User.findById(userId);
     if (!userExists) {
-      return res.status(404).json({ error: 'User not found' });
+      return next(new ErrorHandler('User not found', 404));
     }
 
     // Check if the hospital exists
     const hospitalExists = await Hospital.findById(hospital);
     if (!hospitalExists) {
-      return res.status(404).json({ error: 'Hospital not found' });
+      return next(new ErrorHandler('Hospital not found', 404));
     }
 
     // Check if doctor already exists
     const existingDoctor = await Doctor.findOne({ user: userId });
     if (existingDoctor) {
-      return res.status(400).json({ error: 'Doctor already registered' });
+      return next(new ErrorHandler('Doctor already registered', 400));
     }
 
     // Create a new doctor entry
@@ -36,28 +42,26 @@ exports.registerDoctor = async (req, res) => {
     });
 
     await doctor.save();
-    res.status(201).json({ message: 'Doctor registered successfully', doctor });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(201).json({ success: true, message: 'Doctor registered successfully', doctor });
+  })
+);
 
 // 📌 Get all doctors
-exports.getAllDoctors = async (req, res) => {
-  try {
+router.get(
+  '/get-all-doctors',
+  catchAsyncErrors(async (req, res, next) => {
     const doctors = await Doctor.find()
       .populate('user', 'name email')
       .populate('hospital', 'name location');
 
-    res.status(200).json(doctors);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, doctors });
+  })
+);
 
 // 📌 Get a single doctor by ID
-exports.getDoctorById = async (req, res) => {
-  try {
+router.get(
+  '/:doctorId',
+  catchAsyncErrors(async (req, res, next) => {
     const { doctorId } = req.params;
 
     const doctor = await Doctor.findById(doctorId)
@@ -65,39 +69,37 @@ exports.getDoctorById = async (req, res) => {
       .populate('hospital', 'name location');
 
     if (!doctor) {
-      return res.status(404).json({ error: 'Doctor not found' });
+      return next(new ErrorHandler('Doctor not found', 404));
     }
 
-    res.status(200).json(doctor);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, doctor });
+  })
+);
 
 // 📌 Get doctors by hospital
-exports.getDoctorsByHospital = async (req, res) => {
-  try {
+router.get(
+  '/hospital/:hospitalId',
+  catchAsyncErrors(async (req, res, next) => {
     const { hospitalId } = req.params;
 
     // Check if hospital exists
     const hospitalExists = await Hospital.findById(hospitalId);
     if (!hospitalExists) {
-      return res.status(404).json({ error: 'Hospital not found' });
+      return next(new ErrorHandler('Hospital not found', 404));
     }
 
     const doctors = await Doctor.find({ hospital: hospitalId })
       .populate('user', 'name email')
       .populate('hospital', 'name location');
 
-    res.status(200).json(doctors);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, doctors });
+  })
+);
 
 // 📌 Update a doctor's details
-exports.updateDoctor = async (req, res) => {
-  try {
+router.put(
+  '/update/:doctorId',
+  catchAsyncErrors(async (req, res, next) => {
     const { doctorId } = req.params;
     const { specialization, experience, hospital, availability, phone, status } = req.body;
 
@@ -108,30 +110,29 @@ exports.updateDoctor = async (req, res) => {
     ).populate('user', 'name email');
 
     if (!updatedDoctor) {
-      return res.status(404).json({ error: 'Doctor not found' });
+      return next(new ErrorHandler('Doctor not found', 404));
     }
 
-    res.status(200).json({ message: 'Doctor updated successfully', updatedDoctor });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Doctor updated successfully', updatedDoctor });
+  })
+);
 
 // 📌 Activate or deactivate a doctor
-exports.toggleDoctorStatus = async (req, res) => {
-  try {
+router.patch(
+  '/toggle-status/:doctorId',
+  catchAsyncErrors(async (req, res, next) => {
     const { doctorId } = req.params;
 
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
-      return res.status(404).json({ error: 'Doctor not found' });
+      return next(new ErrorHandler('Doctor not found', 404));
     }
 
     doctor.status = doctor.status === 'active' ? 'inactive' : 'active';
     await doctor.save();
 
-    res.status(200).json({ message: `Doctor ${doctor.status}`, doctor });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: `Doctor ${doctor.status}`, doctor });
+  })
+);
+
+module.exports = router;

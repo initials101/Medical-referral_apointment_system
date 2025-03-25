@@ -1,29 +1,35 @@
+const express = require('express');
 const Patient = require('../models/Patient');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
+const ErrorHandler = require('../utils/ErrorHandler');
+const catchAsyncErrors = require('../middleware/catchAsyncErrors');
+
+const router = express.Router();
 
 // 📌 Register a new patient
-exports.registerPatient = async (req, res) => {
-  try {
+router.post(
+  '/register',
+  catchAsyncErrors(async (req, res, next) => {
     const { userId, dateOfBirth, gender, bloodType, medicalHistory, emergencyContact, assignedDoctor } = req.body;
 
     // Check if user exists
     const userExists = await User.findById(userId);
     if (!userExists) {
-      return res.status(404).json({ error: 'User not found' });
+      return next(new ErrorHandler('User not found', 404));
     }
 
     // Check if patient already exists
     const existingPatient = await Patient.findOne({ user: userId });
     if (existingPatient) {
-      return res.status(400).json({ error: 'Patient already registered' });
+      return next(new ErrorHandler('Patient already registered', 400));
     }
 
     // Check if assigned doctor exists (if provided)
     if (assignedDoctor) {
       const doctorExists = await Doctor.findById(assignedDoctor);
       if (!doctorExists) {
-        return res.status(404).json({ error: 'Assigned doctor not found' });
+        return next(new ErrorHandler('Assigned doctor not found', 404));
       }
     }
 
@@ -39,46 +45,43 @@ exports.registerPatient = async (req, res) => {
     });
 
     await patient.save();
-    res.status(201).json({ message: 'Patient registered successfully', patient });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(201).json({ success: true, message: 'Patient registered successfully', patient });
+  })
+);
 
 // 📌 Get all patients
-exports.getAllPatients = async (req, res) => {
-  try {
+router.get(
+  '/get-all-patients',
+  catchAsyncErrors(async (req, res, next) => {
     const patients = await Patient.find()
       .populate('user', 'name email')
       .populate('assignedDoctor', 'user specialization');
 
-    res.status(200).json(patients);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, patients });
+  })
+);
 
 // 📌 Get a patient by ID
-exports.getPatientById = async (req, res) => {
-  try {
+router.get(
+  '/:patientId',
+  catchAsyncErrors(async (req, res, next) => {
     const { patientId } = req.params;
     const patient = await Patient.findById(patientId)
       .populate('user', 'name email')
       .populate('assignedDoctor', 'user specialization');
 
     if (!patient) {
-      return res.status(404).json({ error: 'Patient not found' });
+      return next(new ErrorHandler('Patient not found', 404));
     }
 
-    res.status(200).json(patient);
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, patient });
+  })
+);
 
 // 📌 Update patient details
-exports.updatePatient = async (req, res) => {
-  try {
+router.put(
+  '/update/:patientId',
+  catchAsyncErrors(async (req, res, next) => {
     const { patientId } = req.params;
     const { dateOfBirth, gender, bloodType, medicalHistory, emergencyContact, assignedDoctor } = req.body;
 
@@ -89,27 +92,26 @@ exports.updatePatient = async (req, res) => {
     ).populate('user', 'name email');
 
     if (!updatedPatient) {
-      return res.status(404).json({ error: 'Patient not found' });
+      return next(new ErrorHandler('Patient not found', 404));
     }
 
-    res.status(200).json({ message: 'Patient updated successfully', updatedPatient });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Patient updated successfully', updatedPatient });
+  })
+);
 
 // 📌 Delete a patient
-exports.deletePatient = async (req, res) => {
-  try {
+router.delete(
+  '/delete/:patientId',
+  catchAsyncErrors(async (req, res, next) => {
     const { patientId } = req.params;
 
     const deletedPatient = await Patient.findByIdAndDelete(patientId);
     if (!deletedPatient) {
-      return res.status(404).json({ error: 'Patient not found' });
+      return next(new ErrorHandler('Patient not found', 404));
     }
 
-    res.status(200).json({ message: 'Patient deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Server Error', details: error.message });
-  }
-};
+    res.status(200).json({ success: true, message: 'Patient deleted successfully' });
+  })
+);
+
+module.exports = router;
