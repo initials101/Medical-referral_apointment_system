@@ -1,35 +1,95 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { loadUser } from "./redux/slices/userSlice";
+import store from "./redux/store";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Pages
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
+import ProfilePage from "./pages/ProfilePage";
+import PatientDashboard from "./pages/PatientDashboard";
+import DoctorDashboard from "./pages/DoctorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import ReferralPage from "./pages/ReferralPage";
+import HospitalList from "./pages/HospitalList";
+import DoctorList from "./pages/DoctorList";
+import PatientList from "./pages/PatientList";
+
+// Protected Routes
+import ProtectedRoute from "./routes/ProtectedRoute";
+import DoctorProtectedRoute from "./routes/DoctorProtectedRoute";
+import AdminProtectedRoute from "./routes/AdminProtectedRoute";
+
+const App = () => {
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state) => state.user);
+
+  useEffect(() => {
+    dispatch(loadUser());
+  }, [dispatch]);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/sign-up" element={<SignupPage />} />
+        <Route path="/hospitals" element={<HospitalList />} />
+        <Route path="/doctors" element={<DoctorList />} />
+        <Route path="/patients" element={<PatientList />} />
 
-export default App
+        {/* Protected Routes */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patient-dashboard"
+          element={
+            <ProtectedRoute>
+              <PatientDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor-dashboard"
+          element={
+            <DoctorProtectedRoute>
+              <DoctorDashboard />
+            </DoctorProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-dashboard"
+          element={
+            <AdminProtectedRoute>
+              <AdminDashboard />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/referrals"
+          element={
+            <ProtectedRoute>
+              <ReferralPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+
+      {/* Toast Notifications */}
+      <ToastContainer position="bottom-center" autoClose={5173} hideProgressBar theme="dark" />
+    </Router>
+  );
+};
+
+export default App;
